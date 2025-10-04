@@ -12,7 +12,6 @@ from github import Github, GithubException
 
 DEFAULT_REPO = "langchain-ai/langgraph"
 DEFAULT_BRANCH = "main"
-DEFAULT_DOCS_DIR = "docs"
 DEFAULT_OUT_DIR = "data/raw"
 
 load_dotenv()
@@ -31,7 +30,6 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--repo", default=DEFAULT_REPO, help="GitHub repo in org/name format")
     ap.add_argument("--branch", default=DEFAULT_BRANCH, help="branch to fetch")
-    ap.add_argument("--docs-dir", default=DEFAULT_DOCS_DIR, help="docs directory inside repo")
     ap.add_argument("--out", default=DEFAULT_OUT_DIR, help="output directory")
     args = ap.parse_args()
 
