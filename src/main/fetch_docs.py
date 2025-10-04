@@ -1,8 +1,8 @@
 import argparse
 import base64
-import hashlib
 import json
 import os
+import shutil
 import sys
 from pathlib import Path
 
@@ -18,40 +18,13 @@ DEFAULT_OUT_DIR = "data/raw"
 load_dotenv()
 
 
-def sha256_bytes(b: bytes) -> str:
-    h = hashlib.sha256()
-    h.update(b)
-    return h.hexdigest()
-
-
-def write_if_changed(dst: Path, source_url: str, content: bytes) -> bool:
+def write_file_and_metainfo(dst: Path, content: bytes):
     """
     Write file only if contents changed (based on sha256).
     Returns True if written, False if unchanged.
     """
     dst.parent.mkdir(parents=True, exist_ok=True)
-    hash_new = sha256_bytes(content)
-    metainfo_file = dst.with_suffix(dst.suffix + ".meta.json")
-
-    # read existing meta (if any)
-    metainfo = {}
-    if metainfo_file.exists():
-        metainfo = json.loads(metainfo_file.read_text(encoding="utf-8"))
-
-    if dst.exists() and metainfo_file.exists():
-        old_hash = metainfo.get("sha256")
-        if old_hash == hash_new:
-            return False  # unchanged
-
     dst.write_bytes(content)
-    if not metainfo:
-        metainfo["source_url"] = source_url
-    metainfo["sha256"] = hash_new
-    metainfo_file.write_text(
-        json.dumps(metainfo, ensure_ascii=False, indent=2),
-        encoding="utf-8"
-    )
-    return True
 
 
 def main():
@@ -61,6 +34,12 @@ def main():
     ap.add_argument("--docs-dir", default=DEFAULT_DOCS_DIR, help="docs directory inside repo")
     ap.add_argument("--out", default=DEFAULT_OUT_DIR, help="output directory")
     args = ap.parse_args()
+
+    # Remove everything before checkout.
+    out_dir = Path(args.out)
+    if out_dir.exists():
+        shutil.rmtree(out_dir)
+    out_dir.mkdir(parents=True)
 
     token = os.getenv("GITHUB_TOKEN")
     if not token:
@@ -74,15 +53,10 @@ def main():
         print(f"Failed to access repo {args.repo}: {e}", file=sys.stderr)
         sys.exit(1)
 
-    out_dir = Path(args.out)
-    out_dir.mkdir(parents=True, exist_ok=True)
-
     docs_prefix = args.docs_dir.strip("/") + "/"
     md_suffixes = (".md", ".mdx")
 
     total = 0
-    changed = 0
-    skipped = 0
 
     # Efficient way: list the entire tree (recursive) once, then filter paths.
     try:
@@ -91,6 +65,7 @@ def main():
         print(f"Failed to fetch git tree for branch '{args.branch}': {e}", file=sys.stderr)
         sys.exit(2)
 
+    manifest = []
     for item in tree:
         # We only care about blobs (files) under docs/ with .md/.mdx
         if item.type != "blob":
@@ -117,18 +92,21 @@ def main():
             continue
 
         # Prepend source URL if missing
-        wrote = write_if_changed(dst, gh_url, raw)
+        write_file_and_metainfo(dst, raw)
+        print(f"✓ updated: {rel}")
+
         total += 1
-        if wrote:
-            changed += 1
-            print(f"✓ updated: {rel}")
-        else:
-            skipped += 1
+        manifest.append({"rel": str(rel), "source_url": gh_url})
 
-    # TODO: Support deleting removed files.
-
-    print(f"\nDone. Files scanned: {total}, updated: {changed}, unchanged: {skipped}")
+    print(f"\nDone. Files scanned: {total}")
     print(f"Output dir: {out_dir.resolve()}")
+
+    manifest_path = out_dir / "manifest.jsonl"
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with manifest_path.open("w", encoding="utf-8") as f:
+        for entry in manifest:
+            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
 
 if __name__ == "__main__":
