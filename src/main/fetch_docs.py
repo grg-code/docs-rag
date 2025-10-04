@@ -31,11 +31,14 @@ def write_if_changed(dst: Path, source_url: str, content: bytes) -> bool:
     """
     dst.parent.mkdir(parents=True, exist_ok=True)
     hash_new = sha256_bytes(content)
-    metainfo_file = dst.with_suffix(dst.suffix + ".json")
+    metainfo_file = dst.with_suffix(dst.suffix + ".meta.json")
 
+    # read existing meta (if any)
     metainfo = {}
-    if dst.exists() and metainfo_file.exists():
+    if metainfo_file.exists():
         metainfo = json.loads(metainfo_file.read_text(encoding="utf-8"))
+
+    if dst.exists() and metainfo_file.exists():
         old_hash = metainfo.get("sha256")
         if old_hash == hash_new:
             return False  # unchanged
@@ -63,10 +66,7 @@ def main():
     if not token:
         print("WARNING: GITHUB_TOKEN is not set. You may hit low rate limits for anonymous access.", file=sys.stderr)
 
-    if token:
-        gh = Github(auth=github.Auth.Token(token), per_page=100)
-    else:
-        gh = Github(per_page=100)
+    gh = Github(auth=github.Auth.Token(token), per_page=100) if token else Github(per_page=100)
 
     try:
         repo = gh.get_repo(args.repo)
@@ -117,15 +117,15 @@ def main():
             continue
 
         # Prepend source URL if missing
-        text = raw.decode("utf-8", errors="ignore")
-
-        wrote = write_if_changed(dst, gh_url, text.encode("utf-8"))
+        wrote = write_if_changed(dst, gh_url, raw)
         total += 1
         if wrote:
             changed += 1
             print(f"✓ updated: {rel}")
         else:
             skipped += 1
+
+    # TODO: Support deleting removed files.
 
     print(f"\nDone. Files scanned: {total}, updated: {changed}, unchanged: {skipped}")
     print(f"Output dir: {out_dir.resolve()}")
