@@ -30,7 +30,7 @@ def main():
     if not CHUNKS_PATH.exists():
         raise FileNotFoundError("Run chunk_docs.py first: data/chunks.jsonl not found")
 
-    ids, rels, sources, sections, rows = [], [], [], [], []
+    ids, rows = [], []
     texts = []
 
     # 1) Read chunks.jsonl
@@ -38,9 +38,7 @@ def main():
         for line in f:
             rec = json.loads(line)
             ids.append(rec["id"])
-            rels.append(rec["rel"])
-            sources.append(rec.get("source"))
-            sections.append(rec.get("section"))
+
             # concatenate section + text for embedding
             prefix = (rec.get("section") or "").strip()
             body = rec["text"]
@@ -66,9 +64,6 @@ def main():
     faiss.write_index(index, str(INDEX_DIR / "index.faiss"))
     meta = {
         "ids": ids,
-        "rels": rels,
-        "sources": sources,
-        "sections": sections,
         "model": EMBED_MODEL,
     }
     with open(INDEX_DIR / "meta.pkl", "wb") as f:
