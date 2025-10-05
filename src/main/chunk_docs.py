@@ -22,14 +22,17 @@ char_splitter = RecursiveCharacterTextSplitter(
     chunk_overlap=CHUNK_OVERLAP,
 )
 
+
 def read_md_clean(path: Path):
     post = frontmatter.load(path)
     return post.content, post.metadata.get("source", None)
+
 
 def clean_text(s: str) -> str:
     # Collapse excessive whitespace but preserve code blocks fencing
     # (simple and safe for MVP)
     return re.sub(r"\s+", " ", s).strip()
+
 
 def chunk_one_file(rel: str, source_url: str):
     """Yield chunk records for a single markdown file identified by rel path."""
@@ -45,7 +48,7 @@ def chunk_one_file(rel: str, source_url: str):
     for hd in header_docs:
         # Build a section path like "H1 > H2 > H3"
         headers = [hd.metadata.get(k) for k in ("h1", "h2", "h3", "h4") if hd.metadata.get(k)]
-        section = " > ".join(headers) if headers else "Introduction"
+        section = " > ".join(headers) if headers else None
 
         # Further split this section by length for retrieval efficiency
         for piece in char_splitter.split_text(hd.page_content):
