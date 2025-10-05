@@ -30,14 +30,12 @@ def main():
     if not CHUNKS_PATH.exists():
         raise FileNotFoundError("Run chunk_docs.py first: data/chunks.jsonl not found")
 
-    ids, rows = [], []
     texts = []
 
     # 1) Read chunks.jsonl
     with CHUNKS_PATH.open("r", encoding="utf-8") as f:
         for line in f:
             rec = json.loads(line)
-            ids.append(rec["id"])
             # TODO: Optionally embed section name as well.
             texts.append(rec["text"])
 
@@ -59,13 +57,13 @@ def main():
     # 4) Save index + metadata
     faiss.write_index(index, str(INDEX_DIR / "index.faiss"))
     meta = {
-        "ids": ids,
         "model": EMBED_MODEL,
+        "ntotal": index.ntotal
     }
     with open(INDEX_DIR / "meta.pkl", "wb") as f:
         pickle.dump(meta, f)
 
-    print(f"✅ Built FAISS index with {len(ids)} vectors @ {INDEX_DIR}")
+    print(f"✅ Built FAISS index with {index.ntotal} vectors @ {INDEX_DIR}")
 
 
 if __name__ == "__main__":
