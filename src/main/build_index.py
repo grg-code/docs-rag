@@ -38,12 +38,8 @@ def main():
         for line in f:
             rec = json.loads(line)
             ids.append(rec["id"])
-
-            # concatenate section + text for embedding
-            prefix = (rec.get("section") or "").strip()
-            body = rec["text"]
-            embed_input = (prefix + "\n\n" + body) if prefix else body
-            texts.append(embed_input)
+            # TODO: Optionally embed section name as well.
+            texts.append(rec["text"])
 
     # 2) Embed in batches
     all_vecs = []
