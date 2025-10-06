@@ -1,6 +1,5 @@
 import json
 import os
-import pickle
 from pathlib import Path
 
 import faiss
@@ -60,8 +59,9 @@ def main():
         "model": EMBED_MODEL,
         "ntotal": index.ntotal
     }
-    with open(INDEX_DIR / "meta.pkl", "wb") as f:
-        pickle.dump(meta, f)
+    meta_path = INDEX_DIR / "meta.json"
+    with meta_path.open("w", encoding="utf-8") as f:
+        json.dump(meta, f, ensure_ascii=False, indent=2)
 
     print(f"✅ Built FAISS index with {index.ntotal} vectors @ {INDEX_DIR}")
 
